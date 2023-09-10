@@ -3,12 +3,13 @@ import requests
 from selenium import webdriver
 import chromedriver_autoinstaller
 
-# Installez automatiquement la version compatible du pilote Chrome
+# Automatically install the compatible Chrome driver version
 chromedriver_autoinstaller.install()
 
-
+# Your pseudo (user name)
 PSEUDO = "Le Mans"
 
+# Headers for HTTP requests
 HEADERS = {
     "accept": "*/*",
     "accept-language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
@@ -22,21 +23,21 @@ HEADERS = {
     "x-requested-with": "XMLHttpRequest"
 }
 
+# The magic answer ID
 MAGIC_ANSWER_ID = 385
 
-# Définition de la fonction updateDuJeu
+# Function to send an HTTP POST request and return the response
 def sendRequest(url: str, headers: dict, data: dict) -> requests.Response:
-    """Envoie une requête POST et retourne la réponse"""
+    """Send an HTTP POST request and return the response"""
     response = requests.post(url, headers=headers, data=data)
 
     if response.status_code == 200:
         return response
-    exit("Erreur lors de la requête")
-    
+    exit("Error during the request")
 
-
+# Function to initialize the game and return the player's ID
 def initGame() -> int:
-    """Initialise le jeu et retourne l'identifiant du joueur"""
+    """Initialize the game and return the player's ID"""
     url = "https://escapeforge.fr/ajax/start_game.php"
 
     data = {
@@ -47,10 +48,9 @@ def initGame() -> int:
     response = sendRequest(url, HEADERS, data)
     return int(response.text)
 
-
-
+# Function to get the game status and return it as a response
 def getGameStatus(user_id: int) -> requests.Response:
-    """Récupère le statut du jeu et retourne un dictionnaire"""
+    """Get the game status and return it as a response"""
     url = "https://escapeforge.fr/ajax/get_current_step.php"
 
     data = {
@@ -61,8 +61,9 @@ def getGameStatus(user_id: int) -> requests.Response:
     response = sendRequest(url, HEADERS, data)
     return response
 
+# Function to send the next step and return the response
 def sendNextStep(user_id: int, nextStepId: int) -> requests.Response:
-    """Envoie un setnextstep et retourne la réponse"""
+    """Send the next step and return the response"""
     url = "https://escapeforge.fr/ajax/set_next_step.php"
 
     data = {
@@ -74,15 +75,19 @@ def sendNextStep(user_id: int, nextStepId: int) -> requests.Response:
     response = sendRequest(url, HEADERS, data)
     return response
 
+# Function to send an answer and return the response
 def sendAnswer(user_id: int) -> requests.Response:
+    """Send an answer and return the response"""
     return sendNextStep(user_id, MAGIC_ANSWER_ID)
 
+# Function to send an action and return the response
 def sendAction(user_id: int) -> requests.Response:
+    """Send an action and return the response"""
     return sendNextStep(user_id, "")
 
-
+# Function to get the ranking and return the response
 def getClassement(user_id: int) -> requests.Response:
-    """Accède à la page de classement et retourne la réponse"""
+    """Access the ranking page and return the response"""
     url = "https://escapeforge.fr/classement.php"
 
     data = {
@@ -93,53 +98,49 @@ def getClassement(user_id: int) -> requests.Response:
     response = sendRequest(url, HEADERS, data)
     return response
 
-### Début du script ###
+### Start of the script ###
 timingToWin = -1
 while timingToWin <= 15:
-    timingToWin = int(input("Entrez le délai pour win (en secondes) > 15: "))
+    timingToWin = int(input("Enter the winning delay (in seconds) > 15: "))
 
-# Initialisez le navigateur Selenium
+# Initialize the Selenium browser
 driver = webdriver.Chrome()
 
-# Accédez à la page d'accueil
+# Go to the homepage
 driver.get("https://escapeforge.fr/initGame.php?idGame=26")
 
-
-# Initialisation du jeu
+# Initialize the game
 user_id = initGame()
 
-print(f"Identifiant du joueur: {user_id}")
+print(f"Player ID: {user_id}")
 
 getGameStatus(user_id)
 
-# Envoi de la réponse
+# Send the answer
 sendAnswer(user_id).text
 
-
 for i in range(timingToWin):
-    print(f"Attente de {timingToWin-i} secondes avant le score")
+    print(f"Waiting for {timingToWin-i} seconds before scoring")
     time.sleep(1)
 
-# Récupération du statut du jeu
-print(getGameStatus(user_id).text)
-print("-"*50)
+# Get the game status
+getGameStatus(user_id)
 
-
-# Renvoie d'un setnextstep
+# Send an action
 sendAction(user_id)
 
-# Récupération du statut du jeu
-getGameStatus(user_id).text
-print("-"*50)
+# Get the game status
+getGameStatus(user_id)
 
+# Get the ranking response
 classement_response = getClassement(user_id)
 
+# Display the ranking in the browser
 driver.get("data:text/html;charset=utf-8," + classement_response.text)
 
-# Ajout d'un délai pour afficher la réponse
+# Add a delay to display the response
 time.sleep(60)
 
-# Fermez le navigateur
+# Close the browser
 driver.close()
 exit(0)
-
