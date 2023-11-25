@@ -1,14 +1,20 @@
 import time
 import requests
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 import chromedriver_autoinstaller
+from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor
+import random as rd
 
 # Automatically install the compatible Chrome driver version
 chromedriver_autoinstaller.install()
 
 # Your pseudo (user name)
-PSEUDO = "Le Mans"
+PSEUDO = "Angers"
 
+# Maximum timing to win (in seconds)
+TIMING_TO_WIN_MAX = 14
 # Headers for HTTP requests
 HEADERS = {
     "accept": "*/*",
@@ -99,48 +105,69 @@ def getClassement(user_id: int) -> requests.Response:
     return response
 
 ### Start of the script ###
-timingToWin = -1
-while timingToWin <= 15:
-    timingToWin = int(input("Enter the winning delay (in seconds) > 15: "))
+timingToWin = 14
+while timingToWin < TIMING_TO_WIN_MAX:
+    timingToWin = int(input("Enter the winning delay (in seconds) >= " + str(TIMING_TO_WIN_MAX) + ": "))
 
-# Initialize the Selenium browser
-driver = webdriver.Chrome()
+def generateAWin() -> None:
 
-# Go to the homepage
-driver.get("https://escapeforge.fr/initGame.php?idGame=26")
+    # Create Chrome options to disable debug message
+    chrome_options = Options()
+    chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    # Initialize the Selenium browser
+    driver = webdriver.Chrome(options=chrome_options)
 
-# Initialize the game
-user_id = initGame()
+    # Go to the homepage
+    driver.get("https://escapeforge.fr/initGame.php?idGame=26")
 
-print(f"Player ID: {user_id}")
+    # Initialize the game
+    user_id = initGame()
 
-getGameStatus(user_id)
+    getGameStatus(user_id)
 
-# Send the answer
-sendAnswer(user_id).text
+    # Send the answer
+    sendAnswer(user_id).text
 
-for i in range(timingToWin):
-    print(f"Waiting for {timingToWin-i} seconds before scoring")
-    time.sleep(1)
+    # Wait for the winning delay
+    time.sleep(timingToWin)
 
-# Get the game status
-getGameStatus(user_id)
+    # Get the game status
+    getGameStatus(user_id)
 
-# Send an action
-sendAction(user_id)
+    # Send an action
+    sendAction(user_id)
 
-# Get the game status
-getGameStatus(user_id)
+    # Get the game status
+    getGameStatus(user_id)
 
-# Get the ranking response
-classement_response = getClassement(user_id)
+    # Get the ranking response
+    classement_response = getClassement(user_id)
 
-# Display the ranking in the browser
-driver.get("data:text/html;charset=utf-8," + classement_response.text)
+    # Display the ranking in the browser
+    driver.get("data:text/html;charset=utf-8," + classement_response.text)
 
-# Add a delay to display the response
-time.sleep(60)
+    # HTML parsing with BeautifulSoup
+    soup = BeautifulSoup(classement_response.text, 'html.parser')
 
-# Close the browser
-driver.close()
+    # Select the part you want to extract using CSS selector
+    result = soup.select_one('.card-footer .text-light')
+
+    # Display the result
+    if result:
+        print("user_id: " + str(user_id) + " just won in " + result.get_text())
+
+    # Add a delay to display the response
+    time.sleep(3)
+
+    # Close the browser
+    driver.close()
+
+# Start a thread pool with a maximum of 4 threads
+max_threads = 4
+with ThreadPoolExecutor(max_threads) as executor:
+    
+    for _ in range(int(rd.uniform(15, 25))):
+        time.sleep(rd.uniform(1, 5))
+        executor.submit(generateAWin)
+
 exit(0)
